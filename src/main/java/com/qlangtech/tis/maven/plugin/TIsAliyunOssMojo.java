@@ -45,10 +45,23 @@ public class TIsAliyunOssMojo extends AbstractMojo {
 
     @Parameter(required = false)
     private String appendDeplpyFileName;
+    @Parameter(required = false, defaultValue = ASSEMBLE_FILE_EXTENSION)
+    private String assembleFileExtension;
+
+    @Parameter(required = false, defaultValue = "tis")
+    private String subDir;
+
+    @Parameter(required = false)
+    private boolean skip = false;
 
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
+
+        if (skip || "pom".equals(this.project.getPackaging())) {
+            this.getLog().warn("artifact:" + this.project.getArtifactId() + " package type is pom skip");
+            return;
+        }
 
         File cfgFile = new File(System.getProperty("user.home"), "aliyun-oss/config.properties");
         if (!cfgFile.exists()) {
@@ -71,43 +84,42 @@ public class TIsAliyunOssMojo extends AbstractMojo {
 
         OSS client = new OSSClientBuilder().build(endpoint, accessKeyId, secretKey);
 
-        File assembleFile = new File(outputDirectory, this.finalName + ASSEMBLE_FILE_EXTENSION);
-        try {
-            try (InputStream appendFileStream = FileUtils.openInputStream(assembleFile)) {
-                String md5 = DigestUtils.md5Hex(appendFileStream);
-                putFile2Oss(bucketName, client, assembleFile, md5);
+        File assembleFile = new File(outputDirectory, this.finalName + assembleFileExtension);
+
+
+        putFile2Oss(bucketName, client, assembleFile);
+
+        // 给ng-tis用，因为ng-tis是npm工程没有直接在其中运行maven插件，所以上传需要依附在其他应用里面
+        if (StringUtils.isNotBlank(this.appendDeplpyFileName)) {
+            String localReleaseDir = System.getProperty(TIS_LOCAL_RELEASE_DIR);
+            File appendFile = null;
+            if (StringUtils.isEmpty(localReleaseDir)) {
+                //throw new MojoExecutionException("system param " + TIS_LOCAL_RELEASE_DIR + "can not be null ");
+                this.getLog().warn("system param " + TIS_LOCAL_RELEASE_DIR + " is empty ,now shall skip deploy '" + appendDeplpyFileName + "'");
+                return;
             }
-
-
-            // 给ng-tis用，因为ng-tis是npm工程没有直接在其中运行maven插件，所以上传需要依附在其他应用里面
-            if (StringUtils.isNotBlank(this.appendDeplpyFileName)) {
-                String localReleaseDir = System.getProperty(TIS_LOCAL_RELEASE_DIR);
-                File appendFile = null;
-                if (StringUtils.isEmpty(localReleaseDir)) {
-                    //throw new MojoExecutionException("system param " + TIS_LOCAL_RELEASE_DIR + "can not be null ");
-                    this.getLog().warn("system param " + TIS_LOCAL_RELEASE_DIR + " is empty ,now shall skip deploy '" + appendDeplpyFileName + "'");
-                    return;
-                }
-                if (!(appendFile = new File(localReleaseDir, this.appendDeplpyFileName)).exists()) {
-                    throw new MojoExecutionException("appendFile" + appendFile.getAbsolutePath() + " is not exist ");
-                }
-                try (InputStream appendFileStream = FileUtils.openInputStream(appendFile)) {
-                    String md5 = DigestUtils.md5Hex(appendFileStream);
-
-                    putFile2Oss(bucketName, client, assembleFile, md5);
-                }
-
+            if (!(appendFile = new File(localReleaseDir, this.appendDeplpyFileName)).exists()) {
+                throw new MojoExecutionException("appendFile" + appendFile.getAbsolutePath() + " is not exist ");
             }
-        } catch (IOException e) {
-            throw new MojoExecutionException(e.getMessage(), e);
+            putFile2Oss(bucketName, client, appendFile);
         }
+
     }
 
-    private void putFile2Oss(String bucketName, OSS client, File assembleFile, String md5) throws MojoFailureException {
+    private void putFile2Oss(String bucketName, OSS client, File assembleFile) throws MojoFailureException {
         if (!assembleFile.exists()) {
             throw new MojoFailureException("target assemble file is not exist:" + assembleFile.getAbsolutePath());
         }
-        String ossKey = project.getVersion() + "/" + assembleFile.getName();
+        final String ossKey = project.getVersion() + "/" + this.subDir + "/" + assembleFile.getName();
+        String md5 = null;
+        try {
+            try (InputStream appendFileStream = FileUtils.openInputStream(assembleFile)) {
+                md5 = DigestUtils.md5Hex(appendFileStream);
+            }
+        } catch (IOException e) {
+            throw new MojoFailureException(assembleFile.getAbsolutePath() + " md5 get faild");
+        }
+
         ObjectMetadata meta = null;
         try {
             meta = client.getObjectMetadata(bucketName, ossKey);
@@ -115,6 +127,7 @@ public class TIsAliyunOssMojo extends AbstractMojo {
             if (!StringUtils.equals(e.getErrorCode(), "NoSuchKey")) {
                 throw e;
             }
+            //  this.getLog().warn("ossKey:" + ossKey + "\n" + e.toString());
         }
         String remoteMd5 = null;
         if (meta != null) {
@@ -137,9 +150,12 @@ public class TIsAliyunOssMojo extends AbstractMojo {
         userMeta.put(KEY_MD5, md5);
         meta.setUserMetadata(userMeta);
         putObj.setMetadata(meta);
-        client.putObject(putObj);
         this.getLog().info("assemble file:" + assembleFile.getAbsolutePath()
-                + " has put in aliyun OSS repository successful,url:" + ossKey);
+                + " start put in aliyun OSS repository successful,key:" + ossKey);
+        client.putObject(putObj);
+        this.getLog().info("key:" + ossKey + " put success");
+
+
     }
 
     private String getConfigTemplateContent() {
