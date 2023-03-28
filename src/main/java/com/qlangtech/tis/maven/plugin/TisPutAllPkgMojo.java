@@ -18,7 +18,7 @@ import java.io.File;
  * @create: 2021-07-26 17:30
  **/
 @Mojo(name = "putall")
-public class TisPutAllPkgMojo extends AbstractMojo {
+public class TisPutAllPkgMojo extends AbstractMojo implements IReleaseComponent {
 
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
     private MavenProject project;
@@ -30,6 +30,9 @@ public class TisPutAllPkgMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${basedir}/tpis")
     protected File tpisDirectory;
+
+    @Parameter(property = "tis.release.version", defaultValue = "${project.version}")
+    protected String tisVersion;
 
     @Parameter(required = false, defaultValue = "tis")
     private String subDir;
@@ -48,7 +51,7 @@ public class TisPutAllPkgMojo extends AbstractMojo {
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         TIsAliyunOssMojo.OSSRuntime oss
-                = TIsAliyunOssMojo.createOssRuntime(this.getLog(), this.project, this.subDir);
+                = TIsAliyunOssMojo.createOssRuntime(this.getLog(), this);
 
         if ("pom".equals(this.project.getPackaging())
                 // 避免进入plugin的工程
@@ -69,5 +72,23 @@ public class TisPutAllPkgMojo extends AbstractMojo {
             }
             oss.putFile2Oss(assembleFile);
         }
+    }
+
+    @Override
+    public String getVersion() {
+        if (StringUtils.isEmpty(this.tisVersion)) {
+            throw new IllegalStateException("tisVersion can not be empty");
+        }
+        return this.tisVersion;
+    }
+
+    @Override
+    public MavenProject getProject() {
+        return this.project;
+    }
+
+    @Override
+    public String getSubDir() {
+        return this.subDir;
     }
 }

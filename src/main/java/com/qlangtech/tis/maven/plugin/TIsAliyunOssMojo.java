@@ -32,7 +32,7 @@ import java.util.Properties;
  * @create: 2020-09-16 12:40
  **/
 @Mojo(name = "put")
-public class TIsAliyunOssMojo extends AbstractMojo {
+public class TIsAliyunOssMojo extends AbstractMojo implements IReleaseComponent {
     public static final String TPI_PACKAGING = "tpi";
     public static final String TAR_PACKAGING = "tar.gz";
     public static final String TIS_PLUGIN_PACKAGE_EXTENSION = "." + TPI_PACKAGING;
@@ -66,7 +66,7 @@ public class TIsAliyunOssMojo extends AbstractMojo {
     @Parameter(required = false)
     private boolean skip = false;
 
-    public static OSSRuntime createOSS(Log log, MavenProject project, String subDir, Optional<String> classifier) throws MojoExecutionException, MojoFailureException {
+    public static OSSRuntime createOSS(Log log, IReleaseComponent releaseComponent, Optional<String> classifier) throws MojoExecutionException, MojoFailureException {
         File cfgFile = new File(System.getProperty("user.home"), "aliyun-oss/config.properties");
         if (!cfgFile.exists()) {
             throw new MojoFailureException("oss config file is not exist:" + cfgFile.getAbsoluteFile() + "\n config.properties template is \n"
@@ -87,31 +87,32 @@ public class TIsAliyunOssMojo extends AbstractMojo {
         String bucketName = getProp(props, "bucketName");
 
         OSS client = new OSSClientBuilder().build(endpoint, accessKeyId, secretKey);
-        return new OSSRuntime(client, log, project, bucketName, subDir, classifier);
+        return new OSSRuntime(client, log, releaseComponent, bucketName, classifier);
     }
 
     public static class OSSRuntime {
         final OSS ossClient;
         final String bucket;
         final Log log;
+        final IReleaseComponent releaseComponent;
         final MavenProject project;
-        final String subDir;
+
         final Optional<String> classifier;
 
         private Log getLog() {
             return this.log;
         }
 
-        public OSSRuntime(OSS ossClient, Log log, MavenProject project, String bucket, String subDir) {
-            this(ossClient, log, project, bucket, subDir, Optional.empty());
+        public OSSRuntime(OSS ossClient, Log log, IReleaseComponent project, String bucket) {
+            this(ossClient, log, project, bucket, Optional.empty());
         }
 
-        public OSSRuntime(OSS ossClient, Log log, MavenProject project, String bucket, String subDir, Optional<String> classifier) {
+        public OSSRuntime(OSS ossClient, Log log, IReleaseComponent releaseComponent, String bucket, Optional<String> classifier) {
             this.ossClient = ossClient;
-            this.bucket = bucket;
             this.log = log;
-            this.project = project;
-            this.subDir = subDir;
+            this.project = releaseComponent.getProject();
+            this.releaseComponent = releaseComponent;
+            this.bucket = bucket;
             this.classifier = classifier;
         }
 
@@ -121,7 +122,7 @@ public class TIsAliyunOssMojo extends AbstractMojo {
             }
 
             //  project.getArtifactId();
-            final StringBuffer ossKey = new StringBuffer(project.getVersion() + "/" + this.subDir + "/");
+            final StringBuffer ossKey = new StringBuffer(releaseComponent.getVersion() + "/" + this.releaseComponent.getSubDir() + "/");
             if (classifier.isPresent()) {
                 ossKey.append(project.getArtifactId()).append("/");//.append(classifier.get()).append("/");
             }
@@ -188,6 +189,21 @@ public class TIsAliyunOssMojo extends AbstractMojo {
     }
 
     @Override
+    public String getVersion() {
+        return this.project.getVersion();
+    }
+
+    @Override
+    public MavenProject getProject() {
+        return this.project;
+    }
+
+    @Override
+    public String getSubDir() {
+        return this.subDir;
+    }
+
+    @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
 
         if (skip || "pom".equals(this.project.getPackaging())) {
@@ -196,26 +212,7 @@ public class TIsAliyunOssMojo extends AbstractMojo {
             return;
         }
 
-//        File cfgFile = new File(System.getProperty("user.home"), "aliyun-oss/config.properties");
-//        if (!cfgFile.exists()) {
-//            throw new MojoFailureException("oss config file is not exist:" + cfgFile.getAbsoluteFile() + "\n config.properties template is \n"
-//                    + getConfigTemplateContent());
-//        }
-//        Properties props = new Properties();
-//        try {
-//            try (InputStream reader = FileUtils.openInputStream(cfgFile)) {
-//                props.load(reader);
-//            }
-//        } catch (IOException e) {
-//            throw new MojoExecutionException(e.getMessage(), e);
-//        }
-//
-//        String endpoint = getProp(props, "endpoint");
-//        String accessKeyId = getProp(props, "accessKey");
-//        String secretKey = getProp(props, "secretKey");
-//        String bucketName = getProp(props, "bucketName");
-
-        OSSRuntime oss = createOssRuntime(this.getLog(), this.project, this.subDir);
+        OSSRuntime oss = createOssRuntime(this.getLog(), this);
         String outputFile = getTpiFileName(oss, finalName, assembleFileExtension);
         File assembleFile = new File(outputDirectory, outputFile);
 
@@ -236,11 +233,11 @@ public class TIsAliyunOssMojo extends AbstractMojo {
     }
 
     public static OSSRuntime createOssRuntime(
-            org.apache.maven.plugin.logging.Log log, MavenProject project, String subDir)
+            org.apache.maven.plugin.logging.Log log, IReleaseComponent releaseComponent)
             throws MojoExecutionException, MojoFailureException {
-        Properties props = project.getProperties();
+        Properties props = releaseComponent.getProject().getProperties();
         return createOSS(log
-                , project, subDir, Optional.ofNullable(props.getProperty("classifier")));
+                , releaseComponent, Optional.ofNullable(props.getProperty("classifier")));
     }
 
     public static void putAppendDeployFile(OSSRuntime oss, String appendDeplpyFileName) throws MojoExecutionException, MojoFailureException {
