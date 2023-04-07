@@ -37,7 +37,7 @@ public class TisPutAllPkgMojo extends AbstractMojo implements IReleaseComponent 
     @Parameter(required = false, defaultValue = "tis")
     private String subDir;
 
-    @Parameter(required = false)
+    @Parameter(property = "append.deploy.file.name",required = false)
     private String appendDeplpyFileName;
 
 //    /**

@@ -219,7 +219,7 @@ public class TIsAliyunOssMojo extends AbstractMojo implements IReleaseComponent 
         oss.putFile2Oss(assembleFile);
 
         // 给ng-tis用，因为ng-tis是npm工程没有直接在其中运行maven插件，所以上传需要依附在其他应用里面
-        putAppendDeployFile(oss, this.appendDeplpyFileName);
+        //  putAppendDeployFile(oss, this.appendDeplpyFileName);
 
     }
 

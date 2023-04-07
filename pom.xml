@@ -8,7 +8,7 @@
         <version>1.0.3</version>
     </parent>
     <artifactId>tisasm-maven-plugin</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7</version>
 
     <packaging>maven-plugin</packaging>
 
