@@ -28,8 +28,7 @@ import java.util.Properties;
 /**
  * 负责将客户打好的tgz assemble包放到阿里云OSS仓库中去
  *
- * @author: baisui 百岁
- * @create: 2020-09-16 12:40
+ * @author: baisui 百岁 2020-09-16 12:40
  **/
 @Mojo(name = "put")
 public class TIsAliyunOssMojo extends AbstractMojo implements IReleaseComponent {

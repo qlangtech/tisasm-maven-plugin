@@ -14,9 +14,7 @@ import org.codehaus.plexus.util.StringUtils;
 
 /**
  * 根据VM 變量，判斷是否要執行該plugin
- * @author 百岁（baisui@2dfire.com）
- *
- * @date 2019年1月24日
+ * @author 百岁（baisui@2dfire.com） 2019年1月24日
  */
 @Mojo(name = "tisasm")
 public class TisSingleAssemblyMojo extends SingleAssemblyMojo {
