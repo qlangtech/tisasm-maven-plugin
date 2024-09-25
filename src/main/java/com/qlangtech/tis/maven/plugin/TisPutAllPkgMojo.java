@@ -87,13 +87,16 @@ public class TisPutAllPkgMojo extends AbstractMojo implements IReleaseComponent 
 
         } else if ("jar".equals(this.project.getPackaging())) {
             // plugins 工程中为了将类似tis-datax-executor 这样的项目打出来的assemble包送入中央仓库中
+            final String propKeyOutputDirectory = "outputDirectory";
             List<Plugin> plugins = this.project.getBuild().getPlugins();
             for (Plugin plugin : plugins) {
                 if ("tisasm-maven-plugin".equals(plugin.getArtifactId())) {
                     Xpp3Dom conf = (Xpp3Dom) plugin.getConfiguration();
-                    Xpp3Dom outputDirElement = conf.getChild("outputDirectory");
+                    Xpp3Dom outputDirElement = conf.getChild(propKeyOutputDirectory);
                     if (outputDirElement == null) {
-                        throw new MojoExecutionException("property of outputDirectory in plugin configuration can not be null");
+                        // throw new MojoExecutionException("property of outputDirectory in plugin configuration can not be null");
+                        this.getLog().info("has not define property '" + propKeyOutputDirectory + "' skip the deploy phase");
+                        return;
                     }
                     Xpp3Dom fname = conf.getChild("finalName");
                     //  System.out.println();
