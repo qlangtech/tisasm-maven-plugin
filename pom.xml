@@ -35,6 +35,11 @@
             <artifactId>commons-io</artifactId>
             <version>2.7</version>
         </dependency>
+        <dependency>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+            <version>2.6</version>
+        </dependency>
         <!--for md5 cal-->
         <dependency>
             <groupId>commons-codec</groupId>
